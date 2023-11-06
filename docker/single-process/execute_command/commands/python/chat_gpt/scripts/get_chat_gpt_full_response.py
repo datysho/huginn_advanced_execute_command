@@ -5,7 +5,7 @@ import sys
 
 
 def send_prompt_to_chat_gpt(prompt, model='gpt-4', max_tokens=None, n=None):
-    api_key = "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"
+    api_key = "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"
     endpoint = "https://api.openai.com/v1/chat/completions"
 
     headers = {
