@@ -113,7 +113,7 @@ def execute_command_get_chat_gpt_full_response():
         n = int(n) if n.isdigit() else None
 
         chat_gpt_response = send_prompt_to_chat_gpt(prompt, model, max_tokens, n)
-        return chat_gpt_response
+        return Response(json.dumps({'chat_gpt_response': chat_gpt_response, 'request_data': data}), content_type='application/json')
 
 
 if __name__ == '__main__':
