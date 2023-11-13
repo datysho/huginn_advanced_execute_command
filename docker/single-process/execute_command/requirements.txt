@@ -4,3 +4,5 @@ gunicorn
 requests
 json5
 python-dotenv
+pdfplumber
+docx2txt
