@@ -9,6 +9,8 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 
+from concurrent.futures import ThreadPoolExecutor
+
 load_dotenv()
 OPEN_AI_API_KEY = os.getenv('OPEN_AI_API_KEY')
 
@@ -248,17 +250,18 @@ def execute_command_cv_rewriter():
             """
             return send_prompt_to_chat_gpt(full_prompt, model, max_tokens, n)
 
-        result_text = ''
-        for section_prompt in [
+        section_prompts = [
             'Write and return only CV_TEMPLATE_HEAD section.',
             'Write and return only CV_TEMPLATE_PROJECTS section.',
             'Write and return only CV_TEMPLATE_JOBS section.',
             'Write and return only CV_TEMPLATE_CERTIFICATIONS_EDUCATIONS_LANGUAGES section.',
             'Write and return only CV_TEMPLATE_ADDITIONAL_AND_FOOTER section.',
-        ]:
-            result_text += get_cv_section(section_prompt)
+        ]
 
-        return jsonify({'chat_gpt_response': result_text, 'request_data': data})
+        with ThreadPoolExecutor() as executor:
+            results = executor.map(get_cv_section, section_prompts)
+
+        return jsonify({'chat_gpt_response': ''.join(results), 'request_data': data})
 
 
 if __name__ == '__main__':
