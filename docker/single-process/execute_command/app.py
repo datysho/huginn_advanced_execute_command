@@ -30,7 +30,7 @@ def format_response(result=None, error_msg=None):
     return response
 
 
-def send_prompt_to_chat_gpt(prompt, model='gpt-4', max_tokens=None, n=None):
+def send_prompt_to_chat_gpt(prompt, model='gpt-4', max_tokens=None, n=None, response_type='plain'):
     endpoint = "https://api.openai.com/v1/chat/completions"
 
     headers = {
@@ -57,6 +57,9 @@ def send_prompt_to_chat_gpt(prompt, model='gpt-4', max_tokens=None, n=None):
             }
         ]
     }
+
+    if response_type == 'json':
+        payload["response_format"] = {"type": "json_object"}
 
     merged_content = ""
     while True:
@@ -262,6 +265,111 @@ def execute_command_cv_rewriter():
             results = executor.map(get_cv_section, section_prompts)
 
         return jsonify({'chat_gpt_response': ''.join(results), 'request_data': data})
+
+
+@app.route('/analyze-email', methods=['POST'])
+def execute_command_analyze_email():
+    data = request.get_json()
+    secret = data.get('secret')
+    if secret != 'StrongSecretCode':
+        response = format_response(error_msg="You don't have permission to do it.")
+        return jsonify(response)
+    else:
+        email_content = data.get('email_content', '')
+        prompt = f'''
+            I will define the rules you must follow in.
+    
+            Basic rules:
+            – Everything here in plain text format;
+            – TEXT is a whole text which I provided you;
+            – CONVERSATION is a part of the text, defined at the end of the TEXT;
+            – You always must follow all the provided rules; 
+            – Your answer must follow ANSWER_TEMPLATE;
+            – If you don't see a possible ToDo (based on text, don't try to guess), make it empty;
+            – Your answers always must be in JSON format, fully based on ecma-404 standard. Before you write the answer, make sure that everything in your answer match ecma-404 standard. Provide the response in pure JSON format with no additional text. Only code;
+            – Your answer must follow the form of the template provided, no other information should be in your answer;
+            
+            Variables rules:
+            – I can define any number of variables in the text;
+            – A variable can contain a value or list of values;
+            – If a variable or a list item starts from [smart] then consider extending it based on prompt inside;
+            – Variable name must contain variable word;
+            – We can define and reuse variables in any place;
+            
+            AUTO_REPLY_LIST_VARIABLE:
+            – auto-reply;
+            – automatic reply;
+            – out of office;
+            – in vocation;
+            – not available;
+            – respond to your email as soon as possible;
+            – response time may be slower;
+            – travelling;
+            – [smart] any message that shows that the message is sent automatically;
+            – [smart] any similar to cases from AUTO_REPLY_LIST_VARIABLE;
+            
+            STOP_MESSAGING_LIST_VARIABLE:
+            – stop message;
+            – stop mailing;
+            – stop spam;
+            – unsubscribe;
+            – remove;
+            – [smart] any message that shows that we're annoying him;
+            – [smart] any similar to cases from STOP_MESSAGING_LIST_VARIABLE;
+            
+            Templates rules:
+            – Template name must contain template word;
+            
+            ANSWER_TEMPLATE:
+            """
+            {{
+              "Score": "Neutral",
+              "ToDo": [
+                "ToDo 1",
+                "ToDo 2",
+                "ToDo 3"
+              ],
+              "Explanation": "Explanation of provided Score and ToDo."
+            }}
+            """
+            
+            Conversation analyse rules:
+            – This conversation can include from 1 to many messages between 1 or more people;
+            – We need to analyse only the latest message;
+            – The latest message always the first one in this conversation, because the order of messages always reversed, from bottom to top;
+            – The person whose message we work with is lead;
+            – If lead's message is always email latter, so in some cases it can contain signature, please don't use it to analyse;
+            
+            Score rules:
+            – Conflict use it when you see two or more possible rules, like Positive and Negative;
+            – Positive is any answer of lead which means that he interested or ask us to message him in later, or asked for our pricing, expertise, and technologies that we work with;
+            – Negative is lead asked as for something from STOP_MESSAGING_LIST_VARIABLE;
+            – Auto-reply is lead which answered something from AUTO_REPLY_LIST_VARIABLE;
+            – Neutral is everything that can’t mark as auto-reply, negative, positive, conflict. Lead asked as to send message to another person, or he is not work any more on this position or in this company, or they all set, don't need any other help right now without any negative.;
+            
+            ToDo list rules:
+            – Must include only possible items from the message, sign or send the NDA, provide a presentation, send the company's website, answer a lead's question, contact to another person, contact him later, send him our pricing / rates, send him more information about expertise and technologies that we work with, schedule a meet, etc;
+            – If it's auto-reply, or he isn't available now by vocation, emergency or any other reason, then add ToDo to write to him when he will be available plus couple of days but not in weekends or holidays;
+            – If lead said that they all set, don't need any other help right now, don’t have any needs at this moment, without any negative, than add ToDo to message him in 4 months, not related to auto-reply messages;
+            – If lead suggest calling or message someone, then mention name and contact data (if available) in ToDo item;
+            – If a reply indicating that the recipient will not be available until a specific date, or he recommends us to try at a specific date, please add the ToDo and mention the specific date inside;
+            – If the lead's response doesn't explicitly state their disinterest in our services and also doesn't provide any negative feedback, then we should add a ToDo item to write to them in 6 months;
+            – If lead ask exact to remove from email list, stop email campaign, remove him from your crm, take him off, etc. Not related to cases when he said not interested or so in neutral way. Then, add the ToDo to remove him from email list (you must mention name and email of this lead in this ToDo);
+            
+            Your task: 
+            Analysed given conversation, as Senior Sales Manager working for a DTEAM company that does outsource and outstaff development, with more than 10 years of b2b sales experience.
+            """
+            {email_content}
+            """
+        '''
+        model = data.get('model', 'gpt-4-1106-preview')
+        max_tokens = data.get('max_tokens', 'false')
+        max_tokens = int(max_tokens) if max_tokens.isdigit() else None
+        n = data.get('n', 'false')
+        n = int(n) if n.isdigit() else None
+
+        chat_gpt_response = send_prompt_to_chat_gpt(prompt, model, max_tokens, n, response_type='json')
+        return jsonify({'chat_gpt_response': chat_gpt_response, 'request_data': data})
 
 
 if __name__ == '__main__':
