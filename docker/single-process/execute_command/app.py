@@ -9,7 +9,7 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 
 load_dotenv()
 OPEN_AI_API_KEY = os.getenv('OPEN_AI_API_KEY')
@@ -140,8 +140,12 @@ def execute_command_cv_rewriter():
                 ## Candidates summary
                 
                 ## Skills
-                - Skills category name from 1 to N
-                    - skill name from 1 to N
+                - Skills category 1
+                    - skill name 1.1, skill name 1.2, skill name 1.3, skill name 1.N
+                - Skills category 2
+                    - skill name 2.1, skill name 2.2, skill name 2.3, skill name 2.N
+                - Skills category M
+                    - skill name M.1, skill name M.2, skill name M.3, skill name M.N
             """TEMPLATE CV_TEMPLATE_HEAD END"""
         '''
 
@@ -236,11 +240,17 @@ def execute_command_cv_rewriter():
                 If you don’t have enough information to fill any of those sections or some part of it, just leave it empty.
                 The result resume structure must follow the template.
                 Please do not miss any skill, job, project, certification or any other provided details from initial CV. It's very necessary for us to get as much relevant CV as possible. You can extend the template, if initial CV has not mentioned details.
+
                 {CV_TEMPLATE_HEAD}
+
                 {CV_TEMPLATE_PROJECTS}
+
                 {CV_TEMPLATE_JOBS}
+
                 {CV_TEMPLATE_CERTIFICATIONS_EDUCATIONS_LANGUAGES}
+
                 {CV_TEMPLATE_ADDITIONAL_AND_FOOTER}
+
                 The result resume must be written as from candidate in a friendly manner, very summarized and clear.
                 {additional_prompt}
                 Here is extracted text from the employee's CV, which was in PDF format. So, some data can be missed, or looks broken.
@@ -261,10 +271,19 @@ def execute_command_cv_rewriter():
             'Write and return only CV_TEMPLATE_ADDITIONAL_AND_FOOTER section.',
         ]
 
+        # Process sections in parallel using ThreadPoolExecutor
+        futures = []
         with ThreadPoolExecutor() as executor:
-            results = executor.map(get_cv_section, section_prompts)
+            for prompt in section_prompts:
+                future = executor.submit(get_cv_section, prompt)
+                futures.append(future)
+            done, _ = wait(futures)
 
-        return jsonify({'chat_gpt_response': ''.join(results), 'request_data': data})
+        # Ensuring results are in the order of submission
+        ordered_results = [future.result() for future in futures]
+        result_text = '\n'.join(ordered_results)
+
+        return jsonify({'chat_gpt_response': result_text, 'request_data': data})
 
 
 @app.route('/analyze-email', methods=['POST'])
