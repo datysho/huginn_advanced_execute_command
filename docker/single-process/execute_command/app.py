@@ -1,15 +1,20 @@
 import io
 import os
 import shlex
+import re
+import html
 import subprocess
 
 import docx2txt
 import pdfplumber
 import requests
+import json5 as json
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 
 from concurrent.futures import ThreadPoolExecutor, wait
+
+
 
 load_dotenv()
 OPEN_AI_API_KEY = os.getenv('OPEN_AI_API_KEY')
@@ -387,8 +392,68 @@ def execute_command_analyze_email():
         n = data.get('n', 'false')
         n = int(n) if n.isdigit() else None
 
-        chat_gpt_response = send_prompt_to_chat_gpt(prompt, model, max_tokens, n, response_type='json')
-        return jsonify({'chat_gpt_response': chat_gpt_response, 'request_data': data})
+        ai_response_json = send_prompt_to_chat_gpt(prompt, model, max_tokens, n, response_type='json')
+
+        body_plain = data.get('body_plain', None)
+        body_html = data.get('body_html', None)
+        body = body_html or body_plain or 'no body'
+
+        try:
+            ai_response = json.loads(ai_response_json)
+        except Exception as e:
+            ai_response = {
+                "Score": "Error",
+                "Explanation": f"Can't parse json: {ai_response_json}, Error: {e}",
+            }
+
+        ai_response['ToDo_string'] = ', '.join(map(str, ai_response.get('ToDo', ['None'])))
+
+        # Unescape html characters
+        cleaned_body = html.unescape(body)
+
+        # Add new lines between tags
+        cleaned_body = f'>\n<'.join([line for line in cleaned_body.split('><')])
+
+        # Remove br
+        cleaned_body = re.sub(r'<\s*br\s*/?\s*>', '\n', cleaned_body, flags=re.IGNORECASE)
+
+        # Remove CSS tags
+        cleaned_body = re.sub('<style.*?</style>', '', cleaned_body, flags=re.DOTALL)
+
+        # Remove JavaScript tags
+        cleaned_body = re.sub('<script.*?</script>', '', cleaned_body, flags=re.DOTALL)
+
+        # Remove HTML comments
+        cleaned_body = re.sub('<!--.*?-->', '', cleaned_body, flags=re.DOTALL)
+
+        # Remove HTML tags
+        cleaned_body = re.sub('<[^>]+?>', '', cleaned_body, flags=re.DOTALL)
+
+        # Replace multiple newlines with a single newline
+        cleaned_body = re.sub(r'\s{3,}', '\n\n', cleaned_body)
+
+        # Remove extra spaces between characters
+        cleaned_body = re.sub(r' {2,}', ' ', cleaned_body)
+
+        ai_response_to_hubspot_dict = {
+            'Active': 'Active',
+            'Positive': 'Positive Replay',
+            'Negative': 'Negative Replay',
+            'Neutral': 'Neutral Replay',
+            'Auto-reply': 'Auto-reply',
+            'MQL': 'MQL',
+            'SAL': 'SAL',
+            'SQL': 'SQL',
+            'Unsubscribe': 'Unsubscribe',
+            'Error': 'Error',
+        }
+
+        return jsonify({
+            'ai_response': ai_response,
+            'cleaned_body': cleaned_body,
+            'hubspot_status': ai_response_to_hubspot_dict[ai_response['Score']],
+            'request_data': data
+        })
 
 
 if __name__ == '__main__':
