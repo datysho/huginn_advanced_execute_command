@@ -299,7 +299,7 @@ def execute_command_analyze_email():
         response = format_response(error_msg="You don't have permission to do it.")
         return jsonify(response)
     else:
-        email_content = data.get('email_content', '')
+        email_content = data.get('body_plain', '')
         prompt = f'''
             I will define the rules you must follow in.
     
