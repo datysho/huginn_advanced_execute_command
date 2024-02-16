@@ -129,6 +129,10 @@ def execute_command_get_chat_gpt_full_response():
         return jsonify({'chat_gpt_response': chat_gpt_response, 'request_data': data})
 
 
+@app.route('/home', methods=['GET'])
+def home_page():
+    return "Home, sweet home!"
+
 @app.route('/cv_rewriter', methods=['POST'])
 def execute_command_cv_rewriter():
     data = request.get_json()
