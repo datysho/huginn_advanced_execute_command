@@ -455,6 +455,35 @@ def execute_command_analyze_email():
             'request_data': data
         })
 
+@app.route('/get-chat-gpt-full-response', methods=['POST'])
+def execute_command_get_chat_gpt_full_response():
+    data = request.get_json()
+    secret = data.get('secret')
+    if secret != 'StrongSecretCode':
+        response = format_response(error_msg="You don't have permission to do it.")
+        return jsonify(response)
+    else:
+        prompt = data.get('prompt', '')
+        if not prompt:
+            response = format_response(error_msg="Please, provide an prompt.")
+            return jsonify(response)
+
+        model = data.get('model', 'gpt-4-1106-preview')
+        max_tokens = data.get('max_tokens', 'false')
+        max_tokens = int(max_tokens) if max_tokens.isdigit() else None
+        n = data.get('n', 'false')
+        n = int(n) if n.isdigit() else None
+
+        ai_response_json = send_prompt_to_chat_gpt(prompt, model, max_tokens, n, response_type='json')
+
+        try:
+            return jsonify({
+                'ai_response': json.loads(ai_response_json),
+            })
+        except Exception as e:
+            response = format_response(error_msg=f"Server side error: {e}")
+            return jsonify(response)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3535)
