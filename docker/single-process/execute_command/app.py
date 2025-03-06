@@ -35,7 +35,7 @@ def format_response(result=None, error_msg=None):
     return response
 
 
-def send_prompt_to_chat_gpt(prompt, model='gpt-4', max_tokens=None, n=None, response_type='plain'):
+def send_prompt_to_chat_gpt(prompt, model='o3-mini', max_tokens=None, n=None, response_type='plain'):
     endpoint = "https://api.openai.com/v1/chat/completions"
 
     headers = {
@@ -119,7 +119,7 @@ def execute_command_get_chat_gpt_full_response():
         return jsonify(response)
     else:
         prompt = data.get('prompt')
-        model = data.get('model', 'gpt-4')
+        model = data.get('model', 'o3-mini')
         max_tokens = data.get('max_tokens', 'false')
         max_tokens = int(max_tokens) if max_tokens.isdigit() else None
         n = data.get('n', 'false')
@@ -234,7 +234,7 @@ def execute_command_cv_rewriter():
 
         cv_raw_text = extract_text_from_file(cv_url)
 
-        model = data.get('model', 'gpt-4')
+        model = data.get('model', 'o3-mini')
         max_tokens = data.get('max_tokens', 'false')
         max_tokens = int(max_tokens) if max_tokens.isdigit() else None
         n = data.get('n', 'false')
@@ -390,7 +390,7 @@ def execute_command_analyze_email():
             {email_content}
             """
         '''
-        model = data.get('model', 'gpt-4-1106-preview')
+        model = data.get('model', 'o3-mini')
         max_tokens = data.get('max_tokens', 'false')
         max_tokens = int(max_tokens) if max_tokens.isdigit() else None
         n = data.get('n', 'false')
