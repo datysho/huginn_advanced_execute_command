@@ -49,7 +49,6 @@ def send_prompt_to_chat_gpt(prompt, model='o3-mini', max_tokens=None, n=None, re
         "presence_penalty": 0,
         "top_p": 1,
         "temperature": 1,
-        "max_tokens": max_tokens,
         "n": n,
         "messages": [
             {
@@ -62,6 +61,8 @@ def send_prompt_to_chat_gpt(prompt, model='o3-mini', max_tokens=None, n=None, re
             }
         ]
     }
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
 
     if response_type == 'json':
         payload["response_format"] = {"type": "json_object"}
